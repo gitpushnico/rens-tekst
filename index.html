@@ -1,0 +1,1165 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Rens tekst for skjulte tegn, homoglypfer og Unicode-problemer. 100% klient-side — ingen upload, ingen tracking.">
+<title>Rens tekst ✨</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✨</text></svg>">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
+  :root {
+    --glass:        rgba(255,255,255,0.03);
+    --glass-hover:  rgba(255,255,255,0.08);
+    --glass-active: rgba(255,255,255,0.12);
+    --glass-border: rgba(255,255,255,0.08);
+    --glass-shine:  rgba(255,255,255,0.15);
+    --bg-deep:      #03050a;
+    --accent:       #8b5cf6;
+    --accent2:      #0ea5e9;
+    --accent3:      #ec4899;
+    --neon-green:   #10b981;
+    --neon-blue:    #38bdf8;
+    --text:         #ffffff;
+    --text-dim:     rgba(255,255,255,0.6);
+    --text-faint:   rgba(255,255,255,0.3);
+    --mono:         'JetBrains Mono', monospace;
+    --sans:         'Outfit', sans-serif;
+    --radius-lg:    24px;
+    --radius-md:    16px;
+    --radius-sm:    12px;
+    --ease-spring:  cubic-bezier(0.25, 1.5, 0.5, 1);
+    --ease-smooth:  cubic-bezier(0.25, 0.1, 0.25, 1);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg-deep);
+    color: var(--text);
+    font-family: var(--sans);
+    height: 100dvh;
+    padding: 24px 28px 24px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    position: relative;
+    background-image: radial-gradient(ellipse at 50% 0%, rgba(139,92,246,0.10) 0%, transparent 70%);
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── BLOBS ──────────────────────────────────────────── */
+  .blob-bg { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+
+  .blob { position: absolute; border-radius: 50%; filter: blur(120px); opacity: 0.3; will-change: transform; }
+
+  .blob-1 { width: 700px; height: 700px; background: radial-gradient(circle, #8b5cf6, #3b82f6); top: -150px; left: -100px; animation: blob1 20s ease-in-out infinite alternate; }
+  .blob-2 { width: 600px; height: 600px; background: radial-gradient(circle, #0ea5e9, #8b5cf6); top: 40%; right: -150px; animation: blob2 25s ease-in-out infinite alternate; }
+  .blob-3 { width: 500px; height: 500px; background: radial-gradient(circle, #ec4899, #f43f5e); bottom: -150px; left: 20%; animation: blob3 22s ease-in-out infinite alternate; }
+  .blob-4 { width: 350px; height: 350px; background: radial-gradient(circle, #10b981, #059669); top: 60%; left: 5%; opacity: 0.2; animation: blob4 18s ease-in-out infinite alternate; }
+
+  @keyframes blob1 { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(60px,-80px) scale(1.1)} }
+  @keyframes blob2 { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(-80px,40px) scale(1.15)} }
+  @keyframes blob3 { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(50px,60px) scale(1.05)} }
+  @keyframes blob4 { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(40px,-50px) scale(1.2)} }
+
+  /* Grain */
+  body::after {
+    content: ''; position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: 0.04;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+    background-size: 300px 300px;
+  }
+
+  header, .main-grid, .btn-row, .status-bar, .alerts,
+  .hash-box, .advanced-section, .char-tooltip { position: relative; z-index: 2; }
+
+  /* ── PAGE LOAD ───────────────────────────────────────── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  header      { animation: fadeUp 0.6s var(--ease-smooth) both; }
+  .main-grid  { animation: fadeUp 0.6s var(--ease-smooth) 0.10s both; }
+  .btn-row    { animation: fadeUp 0.6s var(--ease-smooth) 0.15s both; }
+  .status-bar { animation: fadeUp 0.6s var(--ease-smooth) 0.20s both; }
+
+  /* ── HEADER ─────────────────────────────────────────── */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px; flex-wrap: wrap; gap: 12px;
+    flex-shrink: 0;
+  }
+
+  .logo {
+    font-family: var(--sans); font-size: 36px; font-weight: 800;
+    letter-spacing: -1.5px; display: flex; align-items: center; gap: 4px; line-height: 1;
+  }
+
+  .logo-text-gradient {
+    background: linear-gradient(135deg, #a78bfa, #38bdf8, #fff, #ec4899, #8b5cf6);
+    background-size: 300% 300%; -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent; background-clip: text;
+    animation: logoShift 6s ease-in-out infinite alternate;
+  }
+
+  @keyframes logoShift {
+    0%   { background-position: 0% 50%; }
+    100% { background-position: 100% 50%; }
+  }
+
+  .logo-sparkle {
+    display: inline-block; font-size: 32px;
+    animation: sparkleGlow 2.5s ease-in-out infinite;
+    -webkit-text-fill-color: initial; margin-left: 4px;
+  }
+
+  @keyframes sparkleGlow {
+    0%,100% { filter: drop-shadow(0 0 6px #fbbf24) drop-shadow(0 0 12px #8b5cf6); opacity: 0.85; }
+    50%     { filter: drop-shadow(0 0 16px #fff) drop-shadow(0 0 32px #0ea5e9) drop-shadow(0 0 48px #8b5cf6); opacity: 1; }
+  }
+
+
+  /* ── MODE TOGGLE ─────────────────────────────────────── */
+  .mode-toggle {
+    display: flex;
+    background: rgba(255,255,255,0.04);
+    backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 100px; padding: 6px; gap: 4px;
+    box-shadow: inset 0 2px 10px rgba(0,0,0,0.2);
+  }
+
+  .mode-btn {
+    padding: 10px 24px; font-family: var(--sans); font-size: 14px; font-weight: 600;
+    background: transparent; border: none; color: var(--text-dim); cursor: pointer;
+    border-radius: 100px; transition: all 0.3s var(--ease-smooth); white-space: nowrap;
+  }
+
+  .mode-btn:hover  { color: var(--text); background: rgba(255,255,255,0.06); }
+  .mode-btn:active { transform: scale(0.96); }
+  .mode-btn.active { background: var(--text); color: var(--bg-deep); box-shadow: 0 4px 16px rgba(255,255,255,0.2); }
+
+  /* ── LAYOUT ──────────────────────────────────────────── */
+  .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; flex: 1; min-height: 0; }
+  @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
+
+  /* ── PANEL ───────────────────────────────────────────── */
+  .panel {
+    background: var(--glass);
+    backdrop-filter: blur(40px) saturate(1.5); -webkit-backdrop-filter: blur(40px) saturate(1.5);
+    border: 1px solid var(--glass-border); border-radius: var(--radius-lg);
+    overflow: hidden; position: relative;
+    transition: all 0.4s var(--ease-smooth);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    display: flex; flex-direction: column;
+  }
+
+  .panel::before {
+    content: ''; position: absolute; top: 0; left: 10%; right: 10%; height: 1px; z-index: 1;
+    background: linear-gradient(90deg, transparent, var(--glass-shine) 50%, transparent);
+    pointer-events: none;
+  }
+
+  .panel:hover { border-color: rgba(255,255,255,0.15); transform: translateY(-4px); box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
+  .panel:focus-within { border-color: rgba(139,92,246,0.5); box-shadow: 0 0 0 3px rgba(139,92,246,0.2), 0 20px 40px rgba(0,0,0,0.4); transform: translateY(-4px); }
+
+  .panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; border-bottom: 1px solid var(--glass-border);
+    background: rgba(255,255,255,0.02); font-size: 12px; font-weight: 600;
+    color: var(--text-dim); letter-spacing: 1.2px; text-transform: uppercase;
+    position: relative; z-index: 1;
+  }
+
+  .panel-header-left { display: flex; align-items: center; gap: 8px; }
+
+  .panel-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .dot-input  { background: var(--accent2); box-shadow: 0 0 10px rgba(14,165,233,0.6); }
+  .dot-output { background: var(--neon-green); box-shadow: 0 0 10px rgba(16,185,129,0.6); }
+
+  textarea {
+    width: 100%; height: auto; flex: 1; min-height: 0;
+    background: transparent; border: none; outline: none;
+    resize: none; padding: 20px; font-family: var(--mono); font-size: 14px;
+    color: var(--text); line-height: 1.8; position: relative; z-index: 1; transition: color 0.3s;
+  }
+
+  textarea::placeholder { color: var(--text-faint); font-style: italic; font-size: 14px; }
+  textarea::selection   { background: rgba(139,92,246,0.4); }
+  #outputText { color: rgba(255,255,255,0.85); }
+  #outputText:not(:placeholder-shown) { color: var(--neon-green); }
+
+  .panel-footer {
+    padding: 12px 20px; border-top: 1px solid var(--glass-border);
+    font-family: var(--mono); font-size: 11px; color: var(--text-faint);
+    background: rgba(255,255,255,0.01);
+    display: flex; align-items: center; justify-content: space-between;
+    position: relative; z-index: 1;
+  }
+
+  /* ── BUTTONS ─────────────────────────────────────────── */
+  .btn-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; align-items: center; flex-shrink: 0; }
+
+  .btn {
+    padding: 12px 24px; border-radius: 100px;
+    border: 1px solid var(--glass-border);
+    font-family: var(--sans); font-size: 14px; font-weight: 600;
+    cursor: pointer; background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    color: var(--text); transition: all 0.3s var(--ease-smooth);
+    user-select: none; white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  }
+
+  .btn:hover  { background: rgba(255,255,255,0.10); border-color: rgba(255,255,255,0.25); transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
+  .btn:active { transform: translateY(0) scale(0.96); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+
+  .btn-primary {
+    background: var(--text); border-color: transparent;
+    color: var(--bg-deep); font-weight: 700;
+    box-shadow: 0 8px 24px rgba(255,255,255,0.15);
+  }
+
+  .btn-primary:hover { background: #ffffff; box-shadow: 0 12px 32px rgba(255,255,255,0.3); transform: translateY(-4px) scale(1.02); }
+
+  .btn-sm { padding: 8px 16px; font-size: 12px; }
+
+  /* ── STATUS BAR ──────────────────────────────────────── */
+  .status-bar {
+    background: var(--glass); backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
+    border: 1px solid var(--glass-border); border-radius: 100px;
+    padding: 12px 24px; margin-bottom: 0;
+    display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
+    position: relative; box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    flex-shrink: 0;
+  }
+
+  .status-bar::before {
+    content: ''; position: absolute; top: 0; left: 10%; right: 10%; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--glass-shine), transparent);
+  }
+
+  .meter-wrap { flex: 1; min-width: 200px; }
+
+  .meter-label {
+    font-size: 11px; color: var(--text-dim); font-family: var(--mono); font-weight: 600;
+    margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;
+    letter-spacing: 1px; text-transform: uppercase;
+  }
+
+  .meter-pct {
+    color: var(--neon-blue); font-weight: 700;
+    text-shadow: 0 0 12px rgba(56,189,248,0.5);
+    transition: color 0.4s, opacity 0.4s; font-size: 13px; opacity: 0;
+  }
+
+  .meter-pct.has-data { opacity: 1; }
+  .meter-pct.perfect  { color: var(--neon-green); text-shadow: 0 0 12px rgba(16,185,129,0.5); }
+
+  .meter-bar {
+    height: 6px; background: rgba(255,255,255,0.06);
+    border-radius: 4px; overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.4);
+  }
+
+  .meter-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent) 0%, var(--neon-blue) 70%, var(--neon-green) 100%);
+    border-radius: 4px; width: 0%; transition: width 0.8s var(--ease-smooth);
+    box-shadow: 0 0 12px rgba(56,189,248,0.5); position: relative;
+  }
+
+  .meter-fill::after {
+    content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 30px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.7));
+    border-radius: 4px; animation: shimmer 1.5s ease-in-out infinite;
+  }
+
+  @keyframes shimmer { 0%,100%{opacity:0.5} 50%{opacity:1} }
+
+  .quick-stats {
+    display: flex; gap: 24px; font-family: var(--mono); font-size: 12px;
+    opacity: 0; transition: opacity 0.4s var(--ease-smooth); pointer-events: none;
+  }
+
+  .quick-stats.has-data { opacity: 1; pointer-events: auto; }
+
+  .stat { color: var(--text-faint); letter-spacing: 0.5px; white-space: nowrap; }
+  .stat span {
+    color: var(--neon-blue); font-weight: 700;
+    text-shadow: 0 0 10px rgba(56,189,248,0.4);
+    transition: all 0.3s; margin-left: 4px;
+  }
+
+  .stat span.bump { animation: statBump 0.5s var(--ease-spring); }
+
+  @keyframes statBump { 0%{transform:scale(1)} 50%{transform:scale(1.5);color:#fff} 100%{transform:scale(1)} }
+
+  /* ── ALERTS ──────────────────────────────────────────── */
+  .alerts { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; flex-shrink: 0; }
+
+  .alert {
+    padding: 14px 20px; border-radius: var(--radius-md);
+    font-size: 13px; font-family: var(--mono);
+    display: flex; align-items: center; gap: 12px;
+    border: 1px solid transparent;
+    backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+    animation: alertIn 0.4s var(--ease-spring) both;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  }
+
+  @keyframes alertIn {
+    from { opacity: 0; transform: translateX(-16px) scale(0.96); }
+    to   { opacity: 1; transform: translateX(0) scale(1); }
+  }
+
+  .alert-info    { background: rgba(139,92,246,0.12); border-color: rgba(139,92,246,0.3);  color: #c4b5fd; }
+  .alert-warn    { background: rgba(245,158,11,0.12);  border-color: rgba(245,158,11,0.3);  color: #fcd34d; }
+  .alert-danger  { background: rgba(239,68,68,0.12);   border-color: rgba(239,68,68,0.3);   color: #fca5a5; }
+  .alert-success { background: rgba(16,185,129,0.12);  border-color: rgba(16,185,129,0.3);  color: var(--neon-green); }
+
+  /* ── GLIMMER / SPARKLE ───────────────────────────────── */
+  .glimmer-overlay { pointer-events: none; position: absolute; inset: 0; border-radius: var(--radius-lg); opacity: 0; }
+
+  .panel.glimmering .glimmer-overlay { animation: glimmerSweep 1.6s ease forwards; }
+
+  @keyframes glimmerSweep {
+    0%   { opacity: 0; background: linear-gradient(105deg, transparent 20%, rgba(139,92,246,0.3) 50%, rgba(56,189,248,0.2) 65%, transparent 80%); background-position: -100% 0; background-size: 200% 100%; }
+    40%  { opacity: 1; background-position: 200% 0; }
+    100% { opacity: 0; background-position: 200% 0; }
+  }
+
+  .sparkle-container { position: absolute; inset: 0; pointer-events: none; overflow: hidden; border-radius: var(--radius-lg); }
+
+  .sparkle { position: absolute; border-radius: 50%; animation: sparklePop 1.5s ease-in-out forwards; }
+
+  @keyframes sparklePop {
+    0%   { opacity: 0; transform: scale(0) translate(0,0); }
+    35%  { opacity: 1; transform: scale(1.4) translate(0,0); }
+    100% { opacity: 0; transform: scale(0.2) translate(var(--tx), var(--ty)); }
+  }
+
+  .sparkle.star {
+    border-radius: 0;
+    clip-path: polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);
+  }
+
+  #outputPanel.clean {
+    border-color: rgba(16,185,129,0.4);
+    box-shadow: 0 0 0 1px rgba(16,185,129,0.25), 0 20px 60px rgba(16,185,129,0.1);
+  }
+
+  /* ── HASH BOX ────────────────────────────────────────── */
+  .hash-box {
+    background: rgba(255,255,255,0.03); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+    border: 1px solid rgba(56,189,248,0.3); border-radius: var(--radius-md);
+    padding: 16px 20px; margin-bottom: 20px;
+    display: none; gap: 16px; align-items: center; flex-wrap: wrap;
+    box-shadow: 0 10px 30px rgba(56,189,248,0.1); animation: fadeUp 0.4s var(--ease-smooth);
+  }
+
+  .hash-box.visible { display: flex; }
+
+  .hash-value {
+    font-family: var(--mono); font-size: 13px; color: var(--neon-blue);
+    flex: 1; word-break: break-all; text-shadow: 0 0 12px rgba(56,189,248,0.3);
+  }
+
+  /* ── ADVANCED ────────────────────────────────────────── */
+  .advanced-section { display: none; }
+  .advanced-section.visible { display: block; animation: fadeUp 0.5s var(--ease-smooth); }
+
+  .adv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  @media (max-width: 900px) { .adv-grid { grid-template-columns: 1fr; } }
+
+  .log-panel {
+    background: var(--glass); backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
+    border: 1px solid var(--glass-border); border-radius: var(--radius-md);
+    overflow: hidden; position: relative; box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  }
+
+  .log-panel::before {
+    content: ''; position: absolute; top: 0; left: 10%; right: 10%; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--glass-shine), transparent);
+  }
+
+  .log-body {
+    height: 240px; overflow-y: auto; padding: 12px;
+    font-family: var(--mono); font-size: 12px; color: var(--text-dim);
+  }
+
+  .log-body::-webkit-scrollbar { width: 4px; }
+  .log-body::-webkit-scrollbar-track { background: transparent; }
+  .log-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
+
+  .log-entry {
+    padding: 6px 10px; border-radius: 8px; margin-bottom: 2px;
+    display: flex; gap: 12px; align-items: center; line-height: 1.6; transition: background 0.2s;
+  }
+
+  .log-entry:hover { background: rgba(255,255,255,0.06); }
+  .log-cp    { color: var(--neon-blue); min-width: 72px; font-size: 11px; }
+  .log-char  { color: #fb923c; min-width: 20px; text-align: center; font-size: 14px; font-weight: 600; }
+  .log-desc  { color: var(--text-dim); flex: 1; font-size: 11px; }
+  .log-count { color: var(--text); font-weight: 700; min-width: 24px; text-align: right; }
+
+  .diff-view {
+    font-family: var(--mono); font-size: 13px; line-height: 1.8;
+    padding: 16px; white-space: pre-wrap; word-break: break-all;
+    height: 240px; overflow-y: auto;
+  }
+
+  .diff-view::-webkit-scrollbar { width: 4px; }
+  .diff-view::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
+
+  .diff-removed   { background: rgba(239,68,68,0.2);   color: #fca5a5; text-decoration: line-through; border-radius: 4px; padding: 0 4px; }
+  .diff-homoglyph { background: rgba(245,158,11,0.2);  color: #fcd34d; text-decoration: underline wavy rgba(245,158,11,0.6); cursor: help; border-radius: 4px; padding: 0 4px; }
+  .diff-control   { background: rgba(239,68,68,0.25);  color: #fca5a5; border-radius: 4px; padding: 0 4px; }
+
+  .norm-row {
+    display: flex; gap: 12px; align-items: center; font-family: var(--mono); font-size: 12px;
+    padding: 8px 12px; border-radius: 8px; transition: background 0.2s;
+  }
+  .norm-row:hover { background: rgba(255,255,255,0.06); }
+  .norm-ok   { color: var(--neon-green); }
+  .norm-warn { color: #fb923c; }
+  .norm-label  { color: var(--text-faint); min-width: 60px; font-weight: 600; }
+  .norm-status { font-weight: 700; }
+
+  .output-opts { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+
+  .drop-zone {
+    border: 2px dashed rgba(255,255,255,0.15); border-radius: var(--radius-lg);
+    padding: 40px; text-align: center; color: var(--text-faint); font-size: 14px;
+    cursor: pointer; background: rgba(255,255,255,0.02);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    margin-bottom: 20px; transition: all 0.3s var(--ease-smooth);
+  }
+
+  .drop-zone .drop-icon {
+    font-size: 40px; margin-bottom: 12px; display: block;
+    transition: transform 0.4s var(--ease-spring);
+  }
+
+  .drop-zone:hover, .drop-zone.dragover {
+    border-color: rgba(139,92,246,0.6); color: var(--text);
+    background: rgba(139,92,246,0.08);
+    box-shadow: 0 10px 40px rgba(139,92,246,0.15); transform: translateY(-2px);
+  }
+
+  .drop-zone:hover .drop-icon, .drop-zone.dragover .drop-icon { transform: scale(1.2) translateY(-6px); }
+
+  .batch-results { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+
+  .batch-file-row {
+    display: flex; gap: 16px; padding: 10px 12px; border-radius: 8px; align-items: center;
+    border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;
+  }
+
+  .batch-file-row:hover { background: rgba(255,255,255,0.06); }
+  .batch-filename { flex: 1; color: var(--text); font-weight: 500; }
+  .batch-stat { color: var(--text-dim); min-width: 64px; text-align: right; font-weight: 600; }
+
+  .section-title {
+    font-size: 11px; font-weight: 700; color: var(--text-faint);
+    text-transform: uppercase; letter-spacing: 3px;
+    margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--glass-border);
+  }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 10px; border-radius: 100px;
+    font-size: 10px; font-weight: 700; font-family: var(--mono); letter-spacing: 0.5px;
+  }
+
+  .badge-accent  { background: rgba(139,92,246,0.2);  color: #c4b5fd; }
+  .badge-warn    { background: rgba(245,158,11,0.2);   color: #fcd34d; }
+  .badge-danger  { background: rgba(239,68,68,0.2);    color: #fca5a5; }
+  .badge-success { background: rgba(16,185,129,0.2);   color: var(--neon-green); }
+
+  /* ── CHAR TOOLTIP ────────────────────────────────────── */
+  .char-tooltip {
+    position: fixed;
+    background: rgba(3,5,10,0.95); backdrop-filter: blur(30px) saturate(2); -webkit-backdrop-filter: blur(30px) saturate(2);
+    border: 1px solid rgba(139,92,246,0.4); border-radius: var(--radius-sm);
+    padding: 14px 18px; font-family: var(--mono); font-size: 12px;
+    pointer-events: none; z-index: 9999; display: none; max-width: 300px;
+    box-shadow: 0 12px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(139,92,246,0.2), inset 0 1px 0 rgba(255,255,255,0.1);
+  }
+
+  .char-tooltip.visible { display: block; animation: fadeUp 0.2s var(--ease-smooth); }
+  .ct-cp   { color: var(--neon-blue); font-weight: 700; margin-bottom: 4px; font-size: 13px; }
+  .ct-name { color: var(--text); margin-bottom: 4px; font-weight: 600; }
+  .ct-cat  { color: var(--text-faint); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+  .ct-homo { color: #fcd34d; margin-top: 8px; font-size: 11px; font-weight: 600; padding: 4px 8px; background: rgba(245,158,11,0.1); border-radius: 4px; }
+
+  /* ── FOOTER ──────────────────────────────────────────── */
+  .site-footer {
+    position: relative; z-index: 2; text-align: center;
+    padding: 16px 24px 0; margin-top: 14px;
+    color: var(--text-faint); font-family: var(--sans); font-size: 13px;
+    border-top: 1px solid var(--glass-border);
+    flex-shrink: 0;
+  }
+
+  .site-footer a {
+    color: var(--text-faint); text-decoration: none;
+    transition: color 0.3s; font-weight: 500;
+  }
+
+  .site-footer a:hover { color: #fff; text-shadow: 0 0 10px rgba(255,255,255,0.3); }
+  .site-footer .footer-flag { font-size: 20px; margin: 0 6px; vertical-align: middle; opacity: 0.22; }
+</style>
+</head>
+<body>
+
+<div class="blob-bg" aria-hidden="true">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+  <div class="blob blob-4"></div>
+</div>
+
+<!-- ══ HEADER ════════════════════════════════════════════ -->
+<header>
+  <div>
+    <div class="logo">
+      <span class="logo-text-gradient">Rens tekst</span><span class="logo-sparkle">✨</span>
+    </div>
+  </div>
+  <div class="mode-toggle">
+    <button class="mode-btn active" onclick="setMode('normal')">🧼 Normal</button>
+    <button class="mode-btn" onclick="setMode('advanced')">🔬 Avanceret</button>
+  </div>
+</header>
+
+<!-- ══ INPUT / OUTPUT ════════════════════════════════════ -->
+<div class="main-grid">
+  <div class="panel" id="inputPanel">
+    <div class="panel-header">
+      <div class="panel-header-left">
+        <span class="panel-dot dot-input"></span>
+        <span>Input</span>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-sm" onclick="pasteFromClipboard()">Sæt ind</button>
+        <button class="btn btn-sm" onclick="clearInput()">Ryd</button>
+      </div>
+    </div>
+    <textarea id="inputText" placeholder="Sæt tekst ind her — Word, Google Docs, PDF, email..." oninput="onInputChange()"></textarea>
+    <div class="panel-footer">
+      <span id="inputStats">0 tegn · 0 ord · 0 linjer</span>
+    </div>
+  </div>
+
+  <div class="panel" id="outputPanel" style="position:relative">
+    <div class="glimmer-overlay" id="glimmerOverlay"></div>
+    <div class="sparkle-container" id="sparkleContainer"></div>
+    <div class="panel-header">
+      <div class="panel-header-left">
+        <span class="panel-dot dot-output"></span>
+        <span>Output</span>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-sm" onclick="copyOutput()">Kopier</button>
+        <button class="btn btn-sm" onclick="downloadOutput()">Download</button>
+      </div>
+    </div>
+    <textarea id="outputText" placeholder="Renset tekst vises her..." readonly></textarea>
+    <div class="panel-footer">
+      <span id="outputStats">0 tegn · 0 ord · 0 linjer</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ACTIONS ════════════════════════════════════════════ -->
+<div class="btn-row">
+  <button class="btn btn-primary" onclick="cleanText()">🧼 Rens tekst</button>
+  <button class="btn" onclick="cleanAndCopy()">🧼 Rens + Kopier</button>
+  <div id="advancedBtns" style="display:none;gap:12px;flex-wrap:wrap">
+    <button class="btn" onclick="computeHash()">🔒 SHA-256</button>
+    <button class="btn" onclick="exportReport('html')">📄 HTML-rapport</button>
+    <button class="btn" onclick="exportReport('json')">📦 JSON-rapport</button>
+    <button class="btn" onclick="exportReport('md')">📝 MD-rapport</button>
+  </div>
+</div>
+
+<!-- ══ STATUS ═════════════════════════════════════════════ -->
+<div class="status-bar">
+  <div class="meter-wrap">
+    <div class="meter-label">
+      <span>🧼 Rensestatus</span>
+      <span class="meter-pct" id="meterPct"></span>
+    </div>
+    <div class="meter-bar"><div class="meter-fill" id="meterFill"></div></div>
+  </div>
+  <div class="quick-stats">
+    <div class="stat">Fjernet <span id="statRemoved"></span></div>
+    <div class="stat">Linjer <span id="statLines"></span></div>
+    <div class="stat">Ord <span id="statWords"></span></div>
+    <div class="stat" id="statHomoWrap" style="display:none">Homo <span id="statHomoglyphs">0</span></div>
+  </div>
+</div>
+
+<!-- ══ ALERTS ════════════════════════════════════════════ -->
+<div class="alerts" id="alertsContainer"></div>
+
+<!-- ══ HASH ══════════════════════════════════════════════ -->
+<div class="hash-box" id="hashBox">
+  <span style="font-size:11px;color:var(--text-faint);font-family:var(--mono);white-space:nowrap;text-transform:uppercase;letter-spacing:1.5px">SHA-256</span>
+  <span class="hash-value" id="hashValue">–</span>
+  <button class="btn btn-sm" onclick="copyHash()">Kopier</button>
+</div>
+
+<!-- ══ ADVANCED ══════════════════════════════════════════ -->
+<div class="advanced-section" id="advancedSection">
+
+  <div class="section-title">Output format</div>
+  <div class="output-opts">
+    <button class="btn btn-sm" onclick="formatOutput('plain')">Almindelig</button>
+    <button class="btn btn-sm" onclick="formatOutput('markdown')">Markdown-safe</button>
+    <button class="btn btn-sm" onclick="formatOutput('latex')">LaTeX-safe</button>
+    <button class="btn btn-sm" onclick="formatOutput('csv')">CSV</button>
+    <button class="btn btn-sm" onclick="formatOutput('json')">JSON</button>
+  </div>
+
+  <div class="adv-grid">
+    <div class="log-panel">
+      <div class="panel-header">
+        <div class="panel-header-left"><span>🗒️ Fjernet tegn log</span></div>
+        <button class="btn btn-sm" onclick="clearLog()">Ryd</button>
+      </div>
+      <div class="log-body" id="removedLog">
+        <div style="color:var(--text-faint);padding:20px;text-align:center;font-style:italic;font-size:12px">Rens tekst for at se log...</div>
+      </div>
+    </div>
+    <div class="log-panel">
+      <div class="panel-header">
+        <div class="panel-header-left"><span>🔍 Diff-visning</span></div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span class="badge badge-danger">fjernet</span>
+          <span class="badge badge-warn">homo</span>
+          <span class="badge badge-accent">ctrl</span>
+        </div>
+      </div>
+      <div class="diff-view" id="diffView" style="color:var(--text-faint);font-style:italic;font-size:12px">Rens tekst for at se diff...</div>
+    </div>
+  </div>
+
+  <div class="adv-grid">
+    <div class="log-panel">
+      <div class="panel-header"><div class="panel-header-left"><span>🔤 Unicode normalisering</span></div></div>
+      <div class="log-body" id="normPanel" style="padding:12px">
+        <div style="color:var(--text-faint);text-align:center;padding:20px;font-style:italic;font-size:12px">Rens tekst for at kontrollere...</div>
+      </div>
+    </div>
+    <div class="log-panel">
+      <div class="panel-header"><div class="panel-header-left"><span>🤔 Uregelmæssigheder</span></div></div>
+      <div class="log-body" id="irregPanel">
+        <div style="color:var(--text-faint);padding:20px;text-align:center;font-style:italic;font-size:12px">Ingen analyse endnu...</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-title" style="margin-top:8px">Batch-behandling</div>
+  <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+    <span class="drop-icon">📂</span>
+    Træk .txt-filer hertil, eller klik for at vælge<br>
+    <span style="font-size:12px;opacity:0.5;margin-top:6px;display:inline-block">100% klient-side · ingen upload</span>
+  </div>
+  <input type="file" id="fileInput" style="display:none" accept=".txt" multiple onchange="handleFiles(this.files)">
+  <div class="batch-results" id="batchResults"></div>
+</div>
+
+<div class="char-tooltip" id="charTooltip"></div>
+
+<!-- ══ FOOTER ════════════════════════════════════════════ -->
+<footer class="site-footer">
+  <div><a href="https://github.com/gitpushnico" target="_blank" rel="noopener noreferrer">GitHub</a><span class="footer-flag">🇩🇰</span></div>
+</footer>
+
+<!-- ══ JAVASCRIPT ════════════════════════════════════════ -->
+<script>
+'use strict';
+
+let currentMode = 'normal', lastCleanResult = null;
+
+const HOMOGLYPHS = {
+  0x0430:'a',0x0435:'e',0x0456:'i',0x04CF:'l',0x043E:'o',0x0440:'p',0x0441:'c',0x0443:'y',0x0445:'x',0x0444:'f',
+  0x03BF:'o',0x03B1:'a',0x03B5:'e',0x0261:'g',0x0131:'i',
+  ...Object.fromEntries([...Array(26)].map((_,i)=>[0xFF41+i,String.fromCharCode(97+i)])),
+  ...Object.fromEntries([...Array(26)].map((_,i)=>[0xFF21+i,String.fromCharCode(65+i)]))
+};
+
+const SUSPICIOUS_PATTERNS = [
+  {re:/[ \t]{2,}/g,         label:'Multiple spaces'},
+  {re:/[\u0000-\u0008\u000B\u000E-\u001F\u007F]/g, label:'Control char'},
+  {re:/[\u2028\u2029]/g,    label:'Line/Para separator'},
+  {re:/[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g, label:'Bidi override'},
+  {re:/[\uFEFF]/g,          label:'BOM / ZWNBSP'},
+  {re:/[\uE000-\uF8FF]/g,   label:'Private Use Area'},
+];
+
+const ZERO_WIDTH = [
+  0x200B,0x200C,0x200D,0x200E,0x200F,
+  0x2028,0x2029,0x202A,0x202B,0x202C,0x202D,0x202E,
+  0x2060,0x2061,0x2062,0x2063,0x2064,
+  0x2066,0x2067,0x2068,0x2069,
+  0xFEFF,0xFFF9,0xFFFA,0xFFFB
+];
+
+const CHAR_DESC = {
+  0x200B:'Zero Width Space',    0x200C:'Zero Width Non-Joiner',
+  0x200D:'Zero Width Joiner',   0x200E:'Left-to-Right Mark',
+  0x200F:'Right-to-Left Mark',  0x2028:'Line Separator',
+  0x2029:'Paragraph Separator', 0x202A:'LTR Embedding',
+  0x202B:'RTL Embedding',       0x202C:'Pop Directional Format',
+  0x202D:'LTR Override',        0x202E:'RTL Override',
+  0x00A0:'Non-Breaking Space',  0xFEFF:'BOM / Zero Width NBSP',
+  0x00AD:'Soft Hyphen',         0x2060:'Word Joiner',
+};
+
+const SMART_QUOTES = {
+  '\u2018':"'",'\u2019':"'",'\u201A':"'",'\u201B':"'",
+  '\u201C':'"','\u201D':'"','\u201E':'"','\u201F':'"',
+  '\u2039':'<','\u203A':'>','\u00AB':'"','\u00BB':'"',
+};
+
+/* ── CLEAN ENGINE ───────────────────────────────────────── */
+function cleanTextEngine(input, advanced = false) {
+  const log = new Map();
+  let text = input, totalRemoved = 0;
+
+  const rec = (cp, count = 1) => {
+    const char = String.fromCodePoint(cp);
+    const desc = CHAR_DESC[cp] || getUnicodeName(cp);
+    if (!log.has(cp)) log.set(cp, { char, desc, count: 0 });
+    log.get(cp).count += count;
+    totalRemoved += count;
+  };
+
+  text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+  for (const cp of ZERO_WIDTH) {
+    const re = new RegExp(String.fromCodePoint(cp), 'g');
+    const m = (text.match(re) || []).length;
+    if (m > 0) { rec(cp, m); text = text.replace(re, ''); }
+  }
+
+  const nbspC = (text.match(/\u00A0/g) || []).length;
+  if (nbspC > 0) { rec(0x00A0, nbspC); text = text.replace(/\u00A0/g, ' '); }
+
+  const shC = (text.match(/\u00AD/g) || []).length;
+  if (shC > 0) { rec(0x00AD, shC); text = text.replace(/\u00AD/g, ''); }
+
+  for (const [sq, rep] of Object.entries(SMART_QUOTES)) {
+    const cp = sq.codePointAt(0);
+    const cnt = (text.match(new RegExp(sq, 'g')) || []).length;
+    if (cnt > 0) { rec(cp, cnt); text = text.replace(new RegExp(sq, 'g'), rep); }
+  }
+
+  const mathRe = /[\u2200-\u22FF\u2A00-\u2AFF\u27C0-\u27EF\u2980-\u29FF]/g;
+  const mm = text.match(mathRe) || [];
+  if (mm.length > 0) { for (const ch of mm) rec(ch.codePointAt(0), 1); text = text.replace(mathRe, ''); }
+
+  const ctrlRe = /[\u0000-\u0008\u000B\u000E-\u001F\u007F]/g;
+  const cm = text.match(ctrlRe) || [];
+  for (const ch of cm) rec(ch.codePointAt(0), 1);
+  if (cm.length) text = text.replace(ctrlRe, '');
+
+  text = text.split('\n').map(l => l.replace(/ {2,}/g, ' ')).join('\n');
+  text = text.split('\n').map(l => l.trim()).join('\n').trim();
+
+  let homoglyphCount = 0, homoglyphMap = {};
+  if (advanced) {
+    let r = '';
+    for (const ch of text) {
+      const cp = ch.codePointAt(0);
+      if (HOMOGLYPHS[cp] !== undefined) { r += HOMOGLYPHS[cp]; homoglyphCount++; homoglyphMap[cp] = (homoglyphMap[cp] || 0) + 1; }
+      else r += ch;
+    }
+    text = r;
+  }
+
+  const lines = text ? text.split('\n').length : 0;
+  const words = text ? text.trim().split(/\s+/).filter(Boolean).length : 0;
+  return { cleaned: text, removedLog: log, totalRemoved, homoglyphCount, homoglyphMap, stats: { lines, words, chars: text.length } };
+}
+
+function checkNormalization(text) {
+  return { isNFC: text === text.normalize('NFC'), isNFD: text === text.normalize('NFD'), isNFKC: text === text.normalize('NFKC'), isNFKD: text === text.normalize('NFKD') };
+}
+
+function detectIrregularities(text) {
+  const issues = [];
+  for (const pat of SUSPICIOUS_PATTERNS) { const m = text.match(pat.re); if (m?.length > 0) issues.push({ label: pat.label, count: m.length }); }
+  const highUni = [...text].filter(ch => ch.codePointAt(0) > 0xFFFF);
+  if (highUni.length) issues.push({ label: 'Non-BMP / Emoji', count: highUni.length });
+  const pua = [...text].filter(ch => { const cp = ch.codePointAt(0); return cp >= 0xE000 && cp <= 0xF8FF; });
+  if (pua.length) issues.push({ label: 'Private Use Area', count: pua.length });
+  return issues;
+}
+
+function buildDiff(original, cleaned) {
+  let html = '';
+  const orig = [...original];
+  for (let i = 0; i < Math.min(orig.length, 4000); i++) {
+    const och = orig[i], cp = och.codePointAt(0);
+    if (ZERO_WIDTH.includes(cp) || och === '\u00A0' || och === '\u00AD' || SMART_QUOTES[och] !== undefined || (cp >= 0x2200 && cp <= 0x22FF))
+      html += `<span class="diff-removed" title="U+${cp.toString(16).toUpperCase().padStart(4,'0')}">${escHtml(och) || '·'}</span>`;
+    else if (HOMOGLYPHS[cp] !== undefined && currentMode === 'advanced')
+      html += `<span class="diff-homoglyph" onmouseenter="showTooltip(event,${cp})" onmouseleave="hideTooltip()">${escHtml(och)}</span>`;
+    else if ((cp >= 0 && cp <= 8) || (cp >= 14 && cp <= 31) || cp === 127)
+      html += `<span class="diff-control">·</span>`;
+    else html += escHtml(och);
+  }
+  if (orig.length > 4000) html += `\n<span style="color:var(--text-faint)">[... ${orig.length - 4000} tegn afkortet]</span>`;
+  return html;
+}
+
+/* ── MODE ───────────────────────────────────────────────── */
+function setMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll('.mode-btn').forEach((b, i) =>
+    b.classList.toggle('active', (mode === 'normal' && i === 0) || (mode === 'advanced' && i === 1))
+  );
+  const adv = document.getElementById('advancedSection');
+  const advBtns = document.getElementById('advancedBtns');
+  const hw = document.getElementById('statHomoWrap');
+  if (mode === 'advanced') { adv.classList.add('visible'); advBtns.style.display = 'flex'; hw.style.display = ''; }
+  else { adv.classList.remove('visible'); advBtns.style.display = 'none'; hw.style.display = 'none'; }
+}
+
+/* ── INPUT CHANGE ───────────────────────────────────────── */
+function onInputChange() {
+  const t = document.getElementById('inputText').value;
+  document.getElementById('inputStats').textContent =
+    `${t.length} tegn · ${t.trim() ? t.trim().split(/\s+/).length : 0} ord · ${t ? t.split('\n').length : 0} linjer`;
+}
+
+/* ── CLEAN ──────────────────────────────────────────────── */
+function cleanText() {
+  const input = document.getElementById('inputText').value;
+  if (!input.trim()) { showAlert('⚠️ Ingen tekst at rense.', 'warn'); return; }
+
+  const result = cleanTextEngine(input, currentMode === 'advanced');
+  lastCleanResult = { input, ...result };
+
+  document.getElementById('outputText').value = result.cleaned;
+  document.getElementById('outputStats').textContent =
+    `${result.stats.chars} tegn · ${result.stats.words} ord · ${result.stats.lines} linjer`;
+
+  bumpStat('statLines', result.stats.lines);
+  bumpStat('statWords', result.stats.words);
+  bumpStat('statRemoved', result.totalRemoved);
+  document.getElementById('statHomoglyphs').textContent = result.homoglyphCount;
+
+  updateMeter(input, result.totalRemoved);
+  document.getElementById('meterPct').classList.add('has-data');
+  document.querySelector('.quick-stats').classList.add('has-data');
+
+  clearAlerts();
+  if (result.totalRemoved > 0)       showAlert(`🧼 ${result.totalRemoved} skjulte/problematiske tegn fjernet.`, 'info');
+  if (result.homoglyphCount > 0)     showAlert(`⚠️ ${result.homoglyphCount} homoglypfer erstattet med ASCII.`, 'warn');
+  if (!result.totalRemoved && !result.homoglyphCount) showAlert('✨ Teksten var allerede ren!', 'success');
+
+  const op = document.getElementById('outputPanel');
+  if (!result.totalRemoved && !result.homoglyphCount) { op.classList.add('clean'); triggerGlimmer(true); }
+  else { op.classList.remove('clean'); if (result.totalRemoved > 0) triggerGlimmer(false); }
+
+  if (currentMode === 'advanced') {
+    renderRemovedLog(result.removedLog);
+    renderDiff(input, result.cleaned);
+    renderNormalization(result.cleaned);
+    renderIrregularities(input);
+  }
+}
+
+function cleanAndCopy() {
+  cleanText();
+  setTimeout(() => navigator.clipboard.writeText(document.getElementById('outputText').value)
+    .then(() => showAlert('📋 Renset og kopieret!', 'success')), 120);
+}
+
+/* ── METER ──────────────────────────────────────────────── */
+function updateMeter(original, removed) {
+  const cleanPct = original.length > 0
+    ? Math.max(0, Math.min(100, 100 - Math.round((removed / original.length) * 800)))
+    : 100;
+  document.getElementById('meterFill').style.width = cleanPct + '%';
+  const pctEl = document.getElementById('meterPct');
+  pctEl.textContent = cleanPct + '%';
+  pctEl.classList.toggle('perfect', cleanPct === 100);
+}
+
+/* ── STAT BUMP ──────────────────────────────────────────── */
+function bumpStat(id, val) {
+  const el = document.getElementById(id);
+  el.textContent = val;
+  el.classList.remove('bump');
+  void el.offsetWidth;
+  el.classList.add('bump');
+}
+
+/* ── GLIMMER ────────────────────────────────────────────── */
+function triggerGlimmer(perfect = false) {
+  const panel = document.getElementById('outputPanel');
+  const overlay = document.getElementById('glimmerOverlay');
+  const sc = document.getElementById('sparkleContainer');
+
+  panel.classList.remove('glimmering');
+  void panel.offsetWidth;
+  panel.classList.add('glimmering');
+  overlay.style.animation = 'none';
+  void overlay.offsetWidth;
+  overlay.style.animation = '';
+
+  sc.innerHTML = '';
+  const colors = perfect
+    ? ['#10b981','#38bdf8','#fff','#a78bfa','#fbbf24']
+    : ['#fff','#8b5cf6','#0ea5e9','#ec4899','#fbbf24'];
+  const count = perfect ? 24 : 16;
+
+  for (let i = 0; i < count; i++) {
+    const s = document.createElement('div');
+    s.className = 'sparkle' + (Math.random() > 0.6 ? ' star' : '');
+    const size = 4 + Math.random() * 6;
+    s.style.width  = size + 'px';
+    s.style.height = size + 'px';
+    s.style.left   = (10 + Math.random() * 80) + '%';
+    s.style.top    = (10 + Math.random() * 80) + '%';
+    s.style.setProperty('--tx', (Math.random() - 0.5) * 100 + 'px');
+    s.style.setProperty('--ty', (Math.random() - 0.5) * 100 + 'px');
+    s.style.animationDelay    = (Math.random() * 0.8) + 's';
+    s.style.animationDuration = (1.2 + Math.random() * 1.0) + 's';
+    s.style.background = colors[Math.floor(Math.random() * colors.length)];
+    s.style.boxShadow = `0 0 ${5 + Math.random() * 8}px currentColor`;
+    sc.appendChild(s);
+  }
+  setTimeout(() => { panel.classList.remove('glimmering'); sc.innerHTML = ''; }, 2000);
+}
+
+/* ── ALERTS ─────────────────────────────────────────────── */
+function showAlert(msg, type = 'info') {
+  const d = document.createElement('div');
+  d.className = `alert alert-${type}`;
+  d.textContent = msg;
+  document.getElementById('alertsContainer').appendChild(d);
+}
+
+function clearAlerts() { document.getElementById('alertsContainer').innerHTML = ''; }
+
+/* ── REMOVED LOG ────────────────────────────────────────── */
+function renderRemovedLog(logMap) {
+  const el = document.getElementById('removedLog');
+  if (logMap.size === 0) { el.innerHTML = '<div style="color:var(--neon-green);padding:20px;text-align:center">✅ Ingen tegn fjernet</div>'; return; }
+  let html = `<div class="log-entry" style="color:var(--text-faint);font-size:10px;border-bottom:1px solid var(--glass-border);padding-bottom:4px;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.8px">
+    <span class="log-cp">Codepoint</span><span class="log-char">·</span><span class="log-desc">Beskrivelse</span><span class="log-count">#</span></div>`;
+  for (const [cp, info] of logMap) {
+    const cpHex = 'U+' + cp.toString(16).toUpperCase().padStart(4, '0');
+    const dc = cp < 32 || ZERO_WIDTH.includes(cp) ? '·' : escHtml(info.char);
+    html += `<div class="log-entry" onmouseenter="showTooltip(event,${cp})" onmouseleave="hideTooltip()">
+      <span class="log-cp">${cpHex}</span>
+      <span class="log-char">${dc}</span>
+      <span class="log-desc">${escHtml(info.desc)}</span>
+      <span class="log-count">${info.count}</span>
+    </div>`;
+  }
+  el.innerHTML = html;
+}
+
+/* ── DIFF ───────────────────────────────────────────────── */
+function renderDiff(original, cleaned) { document.getElementById('diffView').innerHTML = buildDiff(original, cleaned); }
+
+/* ── NORMALIZATION ──────────────────────────────────────── */
+function renderNormalization(text) {
+  const norm = checkNormalization(text);
+  const el = document.getElementById('normPanel');
+  let html = '';
+  for (const [form, ok] of Object.entries(norm)) {
+    html += `<div class="norm-row ${ok ? 'norm-ok' : 'norm-warn'}">
+      <span class="norm-label">${form}</span>
+      <span class="norm-status">${ok ? '✅ Ja' : '⚠️ Nej'}</span>
+      ${!ok ? `<button class="btn btn-sm" onclick="applyNorm('${form}')">Fix</button>` : ''}
+    </div>`;
+  }
+  el.innerHTML = html;
+}
+
+function applyNorm(form) {
+  const el = document.getElementById('outputText');
+  el.value = el.value.normalize(form);
+  showAlert(`✅ ${form} normalisering anvendt.`, 'success');
+  renderNormalization(el.value);
+}
+
+/* ── IRREGULARITIES ─────────────────────────────────────── */
+function renderIrregularities(text) {
+  const issues = detectIrregularities(text);
+  const el = document.getElementById('irregPanel');
+  if (issues.length === 0) { el.innerHTML = '<div style="color:var(--neon-green);padding:20px;text-align:center">✅ Ingen uregelmæssigheder</div>'; return; }
+  el.innerHTML = issues.map(i => `<div class="log-entry"><span style="font-size:16px">🤔</span><span style="color:#fb923c;flex:1">${escHtml(i.label)}</span><span class="badge badge-warn">${i.count}×</span></div>`).join('');
+}
+
+/* ── TOOLTIP ────────────────────────────────────────────── */
+function showTooltip(event, cp) {
+  const tt = document.getElementById('charTooltip');
+  const hex = cp.toString(16).toUpperCase().padStart(4, '0');
+  tt.innerHTML = `
+    <div class="ct-cp">U+${hex}</div>
+    <div class="ct-name">${escHtml(CHAR_DESC[cp] || getUnicodeName(cp))}</div>
+    <div class="ct-cat">${escHtml(getUnicodeCategory(cp))}</div>
+    ${HOMOGLYPHS[cp] ? `<div class="ct-homo">⚠️ Homoglyf → '${HOMOGLYPHS[cp]}'</div>` : ''}
+  `;
+  tt.classList.add('visible');
+  moveTT(event);
+  document.addEventListener('mousemove', moveTT);
+}
+
+function moveTT(e) {
+  const tt = document.getElementById('charTooltip');
+  tt.style.left = Math.min(e.clientX + 14, window.innerWidth - 320) + 'px';
+  tt.style.top  = Math.min(e.clientY + 14, window.innerHeight - 140) + 'px';
+}
+
+function hideTooltip() {
+  document.getElementById('charTooltip').classList.remove('visible');
+  document.removeEventListener('mousemove', moveTT);
+}
+
+/* ── HASH ───────────────────────────────────────────────── */
+async function computeHash() {
+  const text = document.getElementById('outputText').value;
+  if (!text) { showAlert('⚠️ Rens tekst først.', 'warn'); return; }
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  const hex = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  document.getElementById('hashValue').textContent = hex;
+  document.getElementById('hashBox').classList.add('visible');
+}
+
+function copyHash() { navigator.clipboard.writeText(document.getElementById('hashValue').textContent).then(() => showAlert('🔒 Hash kopieret!', 'success')); }
+
+/* ── FORMAT OUTPUT ──────────────────────────────────────── */
+function formatOutput(fmt) {
+  let text = document.getElementById('outputText').value;
+  if (!text) { showAlert('⚠️ Rens tekst først.', 'warn'); return; }
+  switch (fmt) {
+    case 'markdown': text = text.replace(/[`*_{}[\]()#+\-.!|\\]/g, '\\$&'); break;
+    case 'latex':    text = text.replace(/[&%$#_{}~^\\]/g, m => ({'&':'\\&','%':'\\%','$':'\\$','#':'\\#','_':'\\_','{':'\\{','}':'\\}','~':'\\textasciitilde{}','^':'\\textasciicircum{}','\\':'\\textbackslash{}'}[m] || m)); break;
+    case 'csv':      text = '"' + text.replace(/"/g, '""') + '"'; break;
+    case 'json':     text = JSON.stringify(text); break;
+  }
+  document.getElementById('outputText').value = text;
+  showAlert(`✅ Output formateret som ${fmt}.`, 'success');
+}
+
+/* ── COPY / DOWNLOAD ────────────────────────────────────── */
+function copyOutput()     { navigator.clipboard.writeText(document.getElementById('outputText').value).then(() => showAlert('📋 Kopieret!', 'success')); }
+function downloadOutput() { const t = document.getElementById('outputText').value; if (!t) return; downloadFile('renset_tekst.txt', t, 'text/plain'); }
+function downloadFile(name, content, type) { const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([content], { type })), download: name }); a.click(); URL.revokeObjectURL(a.href); }
+
+/* ── EXPORT REPORT ──────────────────────────────────────── */
+function exportReport(fmt) {
+  if (!lastCleanResult) { showAlert('⚠️ Rens tekst først.', 'warn'); return; }
+  const r = lastCleanResult, ts = new Date().toISOString();
+  if (fmt === 'json') {
+    downloadFile('rapport.json', JSON.stringify({ timestamp: ts, stats: r.stats, totalRemoved: r.totalRemoved, homoglyphCount: r.homoglyphCount, removedChars: [...r.removedLog.entries()].map(([cp, info]) => ({ codepoint: 'U+' + cp.toString(16).toUpperCase().padStart(4, '0'), description: info.desc, count: info.count })), cleaned: r.cleaned }, null, 2), 'application/json');
+  } else if (fmt === 'md') {
+    let md = `# RensTekst Rapport\n_${ts}_\n\n## Stats\n- Fjernet: ${r.totalRemoved}\n- Homoglypfer: ${r.homoglyphCount}\n- Ord: ${r.stats.words}\n\n## Fjernet tegn\n|CP|Beskrivelse|Antal|\n|---|---|---|\n`;
+    for (const [cp, info] of r.removedLog) md += `|U+${cp.toString(16).toUpperCase().padStart(4,'0')}|${info.desc}|${info.count}|\n`;
+    md += `\n\`\`\`\n${r.cleaned}\n\`\`\`\n`;
+    downloadFile('rapport.md', md, 'text/markdown');
+  } else if (fmt === 'html') {
+    let h = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>RensTekst Rapport</title><style>body{font-family:monospace;background:#03050a;color:#e8e8f0;padding:32px}h1{color:#8b5cf6}table{border-collapse:collapse;width:100%}th,td{padding:10px 14px;border:1px solid rgba(255,255,255,0.08);text-align:left}th{background:rgba(255,255,255,0.05)}pre{background:rgba(255,255,255,0.03);padding:16px;border-radius:12px;white-space:pre-wrap;border:1px solid rgba(255,255,255,0.08)}</style></head><body><h1>🧼 RensTekst Rapport</h1><p>${ts}</p><p>Fjernet: <b>${r.totalRemoved}</b> | Homoglypfer: <b>${r.homoglyphCount}</b></p><h2>Fjernet tegn</h2><table><tr><th>Codepoint</th><th>Beskrivelse</th><th>Antal</th></tr>`;
+    for (const [cp, info] of r.removedLog) h += `<tr><td>U+${cp.toString(16).toUpperCase().padStart(4,'0')}</td><td>${escHtml(info.desc)}</td><td>${info.count}</td></tr>`;
+    h += `</table><h2>Renset tekst</h2><pre>${escHtml(r.cleaned)}</pre></body></html>`;
+    downloadFile('rapport.html', h, 'text/html');
+  }
+}
+
+/* ── BATCH ──────────────────────────────────────────────── */
+const dropZone = document.getElementById('dropZone');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
+
+function handleFiles(files) {
+  const results = document.getElementById('batchResults');
+  results.innerHTML = '<div style="color:var(--text-dim);padding:10px;font-family:var(--mono);font-size:12px">⏳ Behandler...</div>';
+  let html = `<div style="margin-bottom:8px;font-size:11px;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px">${files.length} fil(er) behandlet</div>`;
+  let processed = 0;
+  for (const file of files) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const result = cleanTextEngine(e.target.result, true);
+      html += `<div class="batch-file-row">
+        <span class="batch-filename">${escHtml(file.name)}</span>
+        <span class="batch-stat">${result.stats.chars}</span>
+        <span class="batch-stat" style="color:${result.totalRemoved > 0 ? '#fb923c' : 'var(--neon-green)'}">${result.totalRemoved}</span>
+        <span class="batch-stat" style="color:${result.homoglyphCount > 0 ? '#fcd34d' : 'var(--neon-green)'}">${result.homoglyphCount}</span>
+        <span class="batch-stat"><button class="btn btn-sm" onclick='downloadFile("renset_${escHtml(file.name)}","${escJs(result.cleaned)}","text/plain")'>⬇</button></span>
+      </div>`;
+      if (++processed === files.length) results.innerHTML = html;
+    };
+    reader.readAsText(file);
+  }
+}
+
+/* ── MISC ───────────────────────────────────────────────── */
+async function pasteFromClipboard() {
+  try {
+    const text = await navigator.clipboard.readText();
+    document.getElementById('inputText').value = text;
+    onInputChange();
+    showAlert('📋 Tekst sat ind.', 'info');
+  } catch { showAlert('⚠️ Prøv Ctrl+V.', 'warn'); }
+}
+
+function clearInput() {
+  ['inputText','outputText'].forEach(id => document.getElementById(id).value = '');
+  clearAlerts();
+  document.getElementById('meterFill').style.width = '0%';
+  const pctEl = document.getElementById('meterPct');
+  pctEl.textContent = '';
+  pctEl.classList.remove('perfect', 'has-data');
+  document.querySelector('.quick-stats').classList.remove('has-data');
+  ['statRemoved','statLines','statWords'].forEach(id => document.getElementById(id).textContent = '');
+  document.getElementById('inputStats').textContent = '0 tegn · 0 ord · 0 linjer';
+  document.getElementById('outputStats').textContent = '0 tegn · 0 ord · 0 linjer';
+  document.getElementById('outputPanel').classList.remove('clean');
+  document.getElementById('hashBox').classList.remove('visible');
+  lastCleanResult = null;
+}
+
+function clearLog() { document.getElementById('removedLog').innerHTML = '<div style="color:var(--text-faint);padding:20px;text-align:center;font-style:italic;font-size:12px">Log ryddet</div>'; }
+
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function escJs(s)   { return s.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n').replace(/\r/g,'\\r'); }
+
+function getUnicodeName(cp) {
+  if (cp <= 0x001F) return `Control-${cp.toString(16).toUpperCase()}`;
+  if (cp >= 0x2000 && cp <= 0x206F) return 'General Punctuation';
+  if (cp >= 0x2200 && cp <= 0x22FF) return 'Math Operator';
+  if (cp >= 0xFF00 && cp <= 0xFFEF) return 'Fullwidth Form';
+  if (cp >= 0x0400 && cp <= 0x04FF) return 'Cyrillic';
+  if (cp >= 0x0370 && cp <= 0x03FF) return 'Greek';
+  if (cp >= 0xE000 && cp <= 0xF8FF) return 'Private Use';
+  return `U+${cp.toString(16).toUpperCase().padStart(4,'0')}`;
+}
+
+function getUnicodeCategory(cp) {
+  if (cp < 32) return 'Kontroltegn';
+  if (cp >= 0x0400 && cp <= 0x04FF) return 'Kyrillisk';
+  if (cp >= 0x0370 && cp <= 0x03FF) return 'Græsk';
+  if (cp >= 0x2200 && cp <= 0x22FF) return 'Matematisk operator';
+  if (cp >= 0xFF00 && cp <= 0xFFEF) return 'Fuldbredde form';
+  if (cp >= 0x2000 && cp <= 0x206F) return 'Tegnsætning';
+  if (cp >= 0xE000 && cp <= 0xF8FF) return 'Privat brug';
+  if (cp >= 0x0080 && cp <= 0x00FF) return 'Latin Extended';
+  return 'Andet';
+}
+</script>
+</body>
+</html>
